@@ -1,0 +1,17 @@
+{
+  "name": "دفتر الأم المنتجة",
+  "short_name": "خياطتي",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f43f5e",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "version": "3.2.8",
+  "description": "خياطتي — دفتر الأم المنتجة، الإصدار 6.2"
+}

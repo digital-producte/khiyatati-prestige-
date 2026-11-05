@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prestige Sewing Workshop - Smart App</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#f43f5e">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body class="auth-loading bg-slate-50 text-slate-800 min-h-screen pb-20">
+    <section id="auth-screen" dir="ltr" lang="en" class="min-h-screen flex items-center justify-center px-5 py-8 auth-screen">
+        <div class="w-full max-w-md auth-card">
+            <div class="auth-brand-circle"><img src="./icon.png" alt="Prestige Sewing logo"></div>
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-subtitle">Sign in to manage your orders and data securely from any device</p>
+            <button type="button" id="google-sign-in" class="auth-google-btn"><span class="google-mark">G</span> Continue with Google</button>
+            <div class="auth-divider"><span>OR</span></div>
+            <form id="auth-form" class="space-y-3" onsubmit="submitAuthForm(event)">
+                <div class="auth-input-wrap"><i data-lucide="mail"></i><input id="auth-email" type="email" required autocomplete="email" placeholder="Email address"></div>
+                <a href="#" class="auth-forgot" onclick="resetPassword(event)">Forgot your password?</a>
+                <div class="auth-input-wrap"><i data-lucide="lock-keyhole"></i><input id="auth-password" type="password" required minlength="6" autocomplete="current-password" placeholder="Password"></div>
+                <button type="submit" id="auth-submit" class="auth-primary-btn">Sign in</button>
+            </form>
+            <p class="auth-switch">Don’t have an account? <button type="button" id="auth-mode-toggle" onclick="toggleAuthMode()">Create one</button></p>
+            <p id="auth-error" class="auth-error" role="alert"></p>
+        </div>
+    </section>
+    <div id="app-shell" class="hidden">
+<header class="sticky top-0 z-40 glass-header border-b border-rose-100 shadow-sm">
+        <div class="max-w-md mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="owner-brand-row">
+                    <img id="workshop-logo" src="./prestige-digital.jpg" class="prestige-brand-logo" alt="شعار الورشة">
+                    <h1 id="display-user-name" class="text-xl font-extrabold text-rose-600">خولة</h1>
+                    <span id="user-avatar" class="hidden">خ</span>
+                </div>
+                <button type="button" onclick="toggleAppMenu()" class="menu-toggle" aria-label="فتح القائمة"><i data-lucide="menu" class="w-6 h-6"></i></button>
+            </div>
+            <div id="app-menu" class="app-menu hidden">
+                <button onclick="goHome()"><i data-lucide="layout-dashboard"></i> الرئيسية</button>
+                <button onclick="openNewOrder('bedding')"><i data-lucide="plus-circle"></i> إضافة طلبية</button>
+                <button onclick="openActiveOrders()"><i data-lucide="clipboard-list"></i> تنظيم الطلبيات</button>
+                <button onclick="switchTab('archive')"><i data-lucide="archive"></i> الأرشيف</button>
+                <button onclick="switchTab('clients')"><i data-lucide="users"></i> قاعدة الزبائن</button>
+                <button onclick="openCosts('calculator')"><i data-lucide="calculator"></i> حاسبة التسعير</button>
+                <button onclick="openCosts('project')"><i data-lucide="trending-up"></i> إدارة تكاليف المشروع</button>
+                <button onclick="switchTab('inventory')"><i data-lucide="scissors"></i> جرد مخزون الأقمشة</button>
+                <button onclick="switchTab('goals')"><i data-lucide="target"></i> الأهداف</button>
+                <button onclick="switchTab('settings')"><i data-lucide="settings"></i> الإعدادات</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto px-4 mt-4 space-y-5">
+        <section id="primary-dashboard" class="dashboard-grid">
+            <button class="dashboard-action dashboard-action-main" onclick="openNewOrder('bedding')"><i data-lucide="plus-circle"></i><strong>إضافة طلبية جديدة</strong><small>أفرشة أو ألبسة</small></button>
+            <button class="dashboard-action" onclick="openActiveOrders()"><i data-lucide="clipboard-list"></i><strong>تنظيم الطلبيات</strong><small>الطلبيات المسجلة</small></button>
+            <button class="dashboard-action" onclick="switchTab('archive')"><i data-lucide="archive"></i><strong>الطلبيات المسلمة</strong><small>الأرشيف</small></button>
+            <button class="dashboard-action" onclick="switchTab('clients')"><i data-lucide="users"></i><strong>قاعدة الزبائن</strong><small>الزبونات المسجلات</small></button>
+            <button class="dashboard-action" onclick="openCosts('calculator')"><i data-lucide="calculator"></i><strong>حاسبة التسعير</strong><small>التسعير والربح</small></button>
+            <button class="dashboard-action" onclick="openCosts('project')"><i data-lucide="trending-up"></i><strong>تكاليف المشروع</strong><small>المصاريف الشهرية</small></button>
+        </section>
+
+<nav class="hidden grid grid-cols-7 gap-1 bg-slate-200/70 p-1 rounded-2xl text-[10px] font-bold">
+            <button onclick="openActiveOrders()" id="tab-orders" class="py-2.5 rounded-xl transition-all duration-200 bg-rose-500 text-white shadow-sm flex flex-col items-center gap-1">
+                <i data-lucide="package" class="w-4 h-4"></i> الطلبيات
+            </button>
+            <button onclick="switchTab('archive')" id="tab-archive" class="py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-rose-600 flex flex-col items-center gap-1">
+                <i data-lucide="archive" class="w-4 h-4"></i> الأرشيف
+            </button>
+            <button onclick="switchTab('clients')" id="tab-clients" class="py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-rose-600 flex flex-col items-center gap-1">
+                <i data-lucide="users" class="w-4 h-4"></i> الزبونات
+            </button>
+            <button onclick="switchTab('inventory')" id="tab-inventory" class="py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-rose-600 flex flex-col items-center gap-1">
+                <i data-lucide="scissors" class="w-4 h-4"></i> الأقمشة
+            </button>
+            <button onclick="switchTab('finance')" id="tab-finance" class="py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-rose-600 flex flex-col items-center gap-1">
+                <i data-lucide="trending-up" class="w-4 h-4"></i> الميزانية
+            </button>
+            <button onclick="switchTab('goals')" id="tab-goals" class="py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-rose-600 flex flex-col items-center gap-1">
+                <i data-lucide="target" class="w-4 h-4"></i> الأهداف
+            </button>
+            <button onclick="switchTab('settings')" id="tab-settings" class="py-2.5 rounded-xl transition-all duration-200 text-slate-600 hover:text-rose-600 flex flex-col items-center gap-1">
+                <i data-lucide="settings" class="w-4 h-4"></i> الإعدادات
+            </button>
+        </nav>
+<section id="sec-orders" class="space-y-4">
+            <div class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <i data-lucide="plus-circle" class="w-4 h-4 text-rose-500"></i> إضافة طلبية جديدة
+                    </h2>
+                    <span class="text-[10px] bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full font-semibold">إدارة الورشة</span>
+                </div>
+                <form onsubmit="addOrder(event)" class="space-y-2.5">
+                    <div class="order-domain-picker">
+                        <label class="text-[11px] text-slate-500 font-semibold block mb-1">اختاري مجال الطلبية:</label>
+                        <select id="order-domain" onchange="selectOrderDomain(this.value)" class="w-full px-3 py-2 text-xs border border-rose-200 rounded-xl bg-rose-50 focus:outline-none">
+                            <option value="bedding">خياطة الأفرشة</option><option value="clothing">خياطة الألبسة</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-slate-500 font-semibold block mb-1">اختاري زبونة مسجلة أو أدخلي جديدة:</label>
+                        <div class="flex gap-2">
+                            <select id="order-client-select" onchange="fillClientData()" class="w-1/2 px-2.5 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:outline-none">
+                                <option value="">-- زبونة مسجلة --</option>
+                            </select>
+                            <input type="text" id="order-client-name" placeholder="اسم الزبونة..." required class="w-1/2 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-rose-400">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="tel" id="order-client-phone" placeholder="رقم الهاتف..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                        <input type="text" id="order-client-state" placeholder="الولاية (عنابة)..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="order-item" placeholder="نوع المنتج (تطريز، أفرشة، ألبسة...)" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                        <input type="number" id="order-price" placeholder="سعر البيع الإجمالي (دج)..." required class="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="border border-slate-200 rounded-xl p-2 bg-slate-50">
+                            <label for="order-fabric-image" class="text-[10px] font-bold text-slate-600 block mb-1">صور الأقمشة المستعملة</label>
+                            <input type="file" id="order-fabric-image" accept="image/*" multiple onchange="previewOrderImages(this, 'order-fabric-preview')" class="hidden">
+                            <div id="order-fabric-preview" class="hidden mt-1 grid grid-cols-2 gap-1.5" aria-label="معاينة صور الأقمشة"></div>
+                            <p class="text-[9px] text-slate-400 mt-1">حتى 4 صور — يمكن حذف كل صورة وحدها</p>
+                            <div class="grid grid-cols-2 gap-1 mt-2">
+                                <button type="button" onclick="changeOrderImage('order-fabric-image')" class="bg-white border border-slate-200 text-slate-600 rounded-lg py-1.5 text-[10px]">اختيار الصور</button>
+                                <button type="button" onclick="clearOrderImages('order-fabric-image', 'order-fabric-preview')" class="bg-rose-50 border border-rose-100 text-rose-600 rounded-lg py-1.5 text-[10px]">حذف الكل</button>
+                                <button type="button" onclick="addOrderImage('order-fabric-image')" class="col-span-2 bg-sky-50 border border-sky-300 text-sky-700 rounded-lg py-1.5 text-[10px] font-bold">＋ إضافة صورة للقماش</button>
+                            </div>
+                        </div>
+                        <div class="border border-slate-200 rounded-xl p-2 bg-slate-50">
+                            <label for="order-model-image" class="text-[10px] font-bold text-slate-600 block mb-1">صور المودالات/الأطقم</label>
+                            <input type="file" id="order-model-image" accept="image/*" multiple onchange="previewOrderImages(this, 'order-model-preview')" class="hidden">
+                            <div id="order-model-preview" class="hidden mt-1 grid grid-cols-2 gap-1.5" aria-label="معاينة صور المودالات"></div>
+                            <p class="text-[9px] text-slate-400 mt-1">حتى 4 صور — يمكن حذف كل صورة وحدها</p>
+                            <div class="grid grid-cols-2 gap-1 mt-2">
+                                <button type="button" onclick="changeOrderImage('order-model-image')" class="bg-white border border-slate-200 text-slate-600 rounded-lg py-1.5 text-[10px]">اختيار الصور</button>
+                                <button type="button" onclick="clearOrderImages('order-model-image', 'order-model-preview')" class="bg-rose-50 border border-rose-100 text-rose-600 rounded-lg py-1.5 text-[10px]">حذف الكل</button>
+                                <button type="button" onclick="addOrderImage('order-model-image')" class="col-span-2 bg-sky-50 border border-sky-300 text-sky-700 rounded-lg py-1.5 text-[10px] font-bold">＋ إضافة صورة للمودال</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] text-slate-500 font-semibold block mb-1">ملاحظات القياسات العامة أو الأفرشة:</label>
+                        <textarea id="order-size" placeholder="اكتبي التفاصيل أو القياسات الأخرى إن وجدت..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl h-16 resize-y focus:outline-none"></textarea>
+                    </div>
+<div id="apparel-measurements-panel" class="bg-rose-50/60 p-3 rounded-xl border border-rose-200 space-y-2 hidden">
+                        <div class="flex justify-between items-center border-b border-rose-200 pb-1.5">
+                            <span class="font-bold text-rose-900 text-xs flex items-center gap-1">
+                                <i data-lucide="scissors" class="w-3.5 h-3.5 text-rose-600"></i> قياسات مجال الألبسة والتفصيل
+                            </span>
+                            <span class="text-[10px] text-rose-600">القياسات بالسنتيمتر (سم)</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">الطول الكلي</label><input type="text" id="m-len" placeholder="مثال: 140" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">طول الرقبة</label><input type="text" id="m-neck" placeholder="مثال: 7" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">عرض الكتفين</label><input type="text" id="m-shoulders" placeholder="مثال: 40" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">طول بين النهدين</label><input type="text" id="m-btwn-bust" placeholder="مثال: 18" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الصدر</label><input type="text" id="m-chest" placeholder="مثال: 95" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط تحت الصدر</label><input type="text" id="m-under-chest" placeholder="مثال: 80" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الخصر</label><input type="text" id="m-waist" placeholder="مثال: 75" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">طول قصة الصدر</label><input type="text" id="m-chest-cut" placeholder="مثال: 42" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الورك</label><input type="text" id="m-hips" placeholder="مثال: 102" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">ارتفاع الورك</label><input type="text" id="m-hip-height" placeholder="مثال: 20" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">طول الذراع</label><input type="text" id="m-arm-len" placeholder="مثال: 60" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div><label class="text-[10px] text-slate-600 block mb-0.5">عرض الزندة</label><input type="text" id="m-bicep" placeholder="مثال: 30" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                            <div class="col-span-2"><label class="text-[10px] text-slate-600 block mb-0.5">دوران المعصم</label><input type="text" id="m-wrist" placeholder="مثال: 16" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        </div>
+                        <div class="pt-1">
+                            <label class="text-[10px] text-rose-800 font-semibold block mb-0.5">إضافة قياس آخر إضافي:</label>
+                            <input type="text" id="m-extra" placeholder="مثال: طول الجلابة 135 سم، أو قياس إضافي..." class="w-full px-2.5 py-1.5 text-xs border border-rose-200 rounded-lg bg-white">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="order-deposit" placeholder="العربون المدفوع (دج)..." class="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                        <input type="date" id="order-date" class="w-full px-2 py-2 text-[11px] border border-slate-200 rounded-xl text-slate-600 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] text-slate-500 font-semibold block mb-1">ملاحظات إضافية:</label>
+                        <textarea id="order-notes" placeholder="اكتبي الملاحظات..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl h-16 resize-y focus:outline-none"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5">
+                        <i data-lucide="check" class="w-4 h-4"></i> حفظ الطلبية في الورشة
+                    </button>
+                </form>
+            </div>
+</section>
+<section id="sec-active-orders" class="space-y-4 hidden">
+            <div class="notification-panel hidden bg-amber-50 p-3 rounded-2xl border border-amber-200 shadow-sm space-y-2">
+                <div class="flex items-center justify-between"><h3 class="font-bold text-amber-900 text-xs flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4"></i> التنبيهات</h3><button type="button" onclick="requestNotificationPermission()" class="text-[10px] bg-amber-600 text-white px-2 py-1 rounded-lg">تفعيل إشعارات الهاتف</button></div>
+                <div id="notifications-container" class="space-y-1"></div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5"><i data-lucide="clipboard-list" class="w-4 h-4 text-rose-500"></i> سجل الطلبيات النشطة</h2>
+                    <span id="orders-count-badge" class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-semibold">0 طلبية</span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-2">هنا تلقاي جميع الطلبيات التي مازال العمل عليها مستمر.</p>
+            </div>
+            <div id="orders-container" class="space-y-2.5"></div>
+        </section>
+<section id="sec-archive" class="space-y-4 hidden">
+            <div class="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm space-y-2">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <i data-lucide="archive" class="w-4 h-4 text-emerald-600"></i> أرشيف الطلبيات المسلمة
+                    </h2>
+                    <span id="archive-count-badge" class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">0 أرشيف</span>
+                </div>
+                <p class="text-[11px] text-slate-500">الطلبيات التي تم تسليمها للزبونات تظهر هنا لتبقى مرجعاً لأرباحك.</p>
+            </div>
+            <div id="archive-container" class="space-y-2.5"></div>
+        </section>
+<section id="sec-clients" class="space-y-4 hidden">
+            <div class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <i data-lucide="user-plus" class="w-4 h-4 text-purple-600"></i> إضافة زبونة جديدة
+                    </h2>
+                </div>
+                <form onsubmit="addNewClientDirect(event)" class="space-y-2.5">
+                    <div>
+                        <input type="text" id="direct-client-name" placeholder="اسم الزبونة الكامل..." required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="tel" id="direct-client-phone" placeholder="رقم الهاتف..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                        <input type="text" id="direct-client-state" placeholder="الولاية (عنابة)..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                    </div>
+                    <div>
+                        <input type="text" id="direct-client-notes" placeholder="تفضيلاتها وملاحظات خاصة..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5">
+                        <i data-lucide="user-check" class="w-4 h-4"></i> حفظ الزبونة في القائمة
+                    </button>
+                </form>
+            </div>
+<div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm">
+                <div class="relative">
+                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input type="text" id="client-search-input" oninput="renderClients()" placeholder="ابحثي عن اسم زبونة أو ولاية..." class="w-full pr-9 pl-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none bg-slate-50">
+                </div>
+            </div>
+<div class="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-2xl border border-amber-200 shadow-sm space-y-2">
+                <h3 class="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <i data-lucide="crown" class="w-4 h-4 text-amber-600"></i> الزبونة الوفية الأكثر طلباً (VIP)
+                </h3>
+                <div id="vip-client-card" class="text-xs text-amber-800"></div>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-slate-600 px-1">قائمة الزبونات المسجلات</h3>
+                <div id="clients-container" class="space-y-2"></div>
+            </div>
+        </section>
+<section id="sec-inventory" class="space-y-4 hidden">
+            <div class="notification-panel hidden bg-amber-50 p-3 rounded-2xl border border-amber-200 shadow-sm"><h3 class="font-bold text-amber-900 text-xs flex items-center gap-1.5"><i data-lucide="bell-ring" class="w-4 h-4"></i> تنبيهات الجرد</h3><div id="inventory-alerts-container" class="space-y-1 mt-2"></div></div>
+            <div class="bg-white p-4 rounded-2xl border border-amber-200 shadow-sm space-y-3">
+                <div class="flex justify-between items-center border-b border-amber-100 pb-2">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5"><i data-lucide="warehouse" class="w-4 h-4 text-amber-600"></i> جرد مخزون الأقمشة</h2>
+                    <span class="text-[10px] bg-amber-50 text-amber-700 px-2 py-1 rounded-full font-bold">تنظيم المنتجات</span>
+                </div>
+                <form onsubmit="addInventoryProduct(event)" class="space-y-2.5">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="inventory-product-name" required placeholder="اسم المنتج" class="w-full px-3 py-2 text-xs border rounded-xl bg-white">
+                        <input type="text" id="inventory-product-type" placeholder="نوع المنتج" class="w-full px-3 py-2 text-xs border rounded-xl bg-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" inputmode="text" id="inventory-product-qty" required placeholder="الكمية: 5 قطع أو مترين" class="w-full px-3 py-2 text-xs border rounded-xl bg-white">
+                        <input type="number" id="inventory-product-price" min="0" step="0.01" placeholder="السعر (دج)" class="w-full px-3 py-2 text-xs border rounded-xl bg-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="inventory-file-label"><span>صورة المنتج 1</span><input type="file" id="inventory-product-image" accept="image/*" onchange="previewInventoryImage(this,'inventory-image-preview')"><img id="inventory-image-preview" class="hidden" alt="معاينة المنتج"></label>
+                        <label class="inventory-file-label"><span>صورة المنتج 2</span><input type="file" id="inventory-product-image-2" accept="image/*" onchange="previewInventoryImage(this,'inventory-image-preview-2')"><img id="inventory-image-preview-2" class="hidden" alt="معاينة المنتج"></label>
+                    </div>
+                    <textarea id="inventory-product-notes" rows="3" placeholder="ملاحظات حول المنتج..." class="w-full px-3 py-2 text-xs border rounded-xl bg-white resize-y"></textarea>
+                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5"><i data-lucide="plus-circle" class="w-4 h-4"></i> إضافة المنتج إلى الجرد</button>
+                </form>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-sky-200 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5"><i data-lucide="shopping-basket" class="w-4 h-4 text-sky-600"></i> قائمة السلع واللوازم</h3>
+                    <button type="button" onclick="toggleShoppingForm()" class="bg-sky-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">إضافة سلعة</button>
+                </div>
+                <form id="shopping-item-form" onsubmit="addShoppingItem(event)" class="hidden space-y-2 bg-sky-50 p-3 rounded-xl border border-sky-100">
+                    <input type="text" id="shopping-item-name" required placeholder="اسم السلعة" class="w-full px-3 py-2 text-xs border rounded-xl bg-white">
+                    <div class="grid grid-cols-2 gap-2"><input type="text" inputmode="text" id="shopping-item-qty" required placeholder="الكمية: 5 قطع أو مترين" class="w-full px-3 py-2 text-xs border rounded-xl bg-white"><input type="file" id="shopping-item-image" accept="image/*" class="w-full text-[10px] py-2"></div>
+                    <button type="submit" class="w-full bg-sky-600 text-white py-2 rounded-xl text-xs font-bold">حفظ السلعة</button>
+                </form>
+                <div id="shopping-list-container" class="space-y-2"></div>
+            </div>
+            <div id="inventory-products-container" class="space-y-2.5"></div>
+        </section>
+<section id="sec-finance" class="space-y-4 hidden">
+<div id="pricing-calculator-panel" class="bg-white p-4 rounded-2xl border border-purple-200 shadow-sm space-y-3">
+                <div class="flex items-center justify-between border-b border-purple-100 pb-2">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <i data-lucide="badge-percent" class="w-4 h-4 text-purple-600"></i> حاسبة التسعير بنسبة الربح
+                    </h2>
+                    <span class="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded-full font-semibold">تسعير مقترح</span>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <label for="pricing-goods-cost" class="text-slate-500 font-semibold block mb-1">سعر التكلفة الإجمالية للسلع والمواد (دج):</label>
+                        <input type="number" id="pricing-goods-cost" min="0" step="0.01" oninput="calculatePricing()" placeholder="مثال: 5000" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400">
+                    </div>
+                    <div class="bg-amber-50/60 p-3 rounded-xl border border-amber-200 space-y-2">
+                        <div>
+                            <h3 class="font-bold text-amber-900">🧾 حاسبة المصاريف الإضافية</h3>
+                            <p class="text-[10px] text-amber-700 mt-0.5">اكتبي قيمة كل مصروف خاص بهذه الطلبية. إذا لم يوجد، اتركي الخانة فارغة.</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label for="pricing-delivery" class="text-[10px] text-slate-600 block mb-1">التوصيل أو التنقل</label><input type="number" id="pricing-delivery" min="0" step="0.01" oninput="calculatePricing()" placeholder="مثال: 200 دج" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                            <div><label for="pricing-packaging" class="text-[10px] text-slate-600 block mb-1">التغليف والأكياس</label><input type="number" id="pricing-packaging" min="0" step="0.01" oninput="calculatePricing()" placeholder="مثال: 50 دج" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                            <div><label for="pricing-electricity" class="text-[10px] text-slate-600 block mb-1">الكهرباء واللوازم</label><input type="number" id="pricing-electricity" min="0" step="0.01" oninput="calculatePricing()" placeholder="مثال: 100 دج" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                            <div><label for="pricing-other-expense" class="text-[10px] text-slate-600 block mb-1">مصروف آخر</label><input type="number" id="pricing-other-expense" min="0" step="0.01" oninput="calculatePricing()" placeholder="مثال: 0 دج" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                        </div>
+                        <div class="flex justify-between items-center border-t border-amber-200 pt-2 text-xs"><span class="font-semibold text-amber-900">مجموع المصاريف الإضافية:</span><strong id="pricing-extra-expenses-total" class="text-amber-800">0.00 دج</strong></div>
+                    </div>
+                    <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-200 space-y-2">
+                        <div>
+                            <h3 class="font-bold text-blue-900">⏱️ حاسبة حق التعب</h3>
+                            <p class="text-[10px] text-blue-700 mt-0.5">اكتبي مدة كل مرحلة بالدقائق، ثم اكتبي قيمة ساعة عملك. مثال: 90 دقيقة.</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label for="pricing-cutting-hours" class="text-[10px] text-slate-600 block mb-1">مدة القص والتحضير (دقيقة)</label><input type="number" id="pricing-cutting-hours" min="0" step="1" oninput="calculatePricing()" placeholder="مثال: 60 دقيقة" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                            <div><label for="pricing-sewing-hours" class="text-[10px] text-slate-600 block mb-1">مدة الخياطة (دقيقة)</label><input type="number" id="pricing-sewing-hours" min="0" step="1" oninput="calculatePricing()" placeholder="مثال: 240 دقيقة" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                            <div><label for="pricing-finishing-hours" class="text-[10px] text-slate-600 block mb-1">مدة التشطيب والكي (دقيقة)</label><input type="number" id="pricing-finishing-hours" min="0" step="1" oninput="calculatePricing()" placeholder="مثال: 60 دقيقة" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                            <div><label for="pricing-hourly-rate" class="text-[10px] text-slate-600 block mb-1">قيمة ساعة العمل (دج)</label><input type="number" id="pricing-hourly-rate" min="0" step="0.01" oninput="calculatePricing()" placeholder="مثال: 300 دج" class="w-full px-2.5 py-2 border rounded-xl bg-white"></div>
+                        </div>
+                        <div class="flex justify-between items-center border-t border-blue-200 pt-2 text-xs"><span class="font-semibold text-blue-900">مجموع الوقت:</span><span id="pricing-total-time" class="text-blue-700">0 دقيقة</span></div>
+                        <div class="flex justify-between items-center text-xs"><span class="font-semibold text-blue-900">مجموع حق التعب:</span><strong id="pricing-labor-total" class="text-blue-800">0.00 دج</strong></div>
+                    </div>
+                    <div>
+                        <label for="pricing-extra-cost" class="text-slate-500 font-semibold block mb-1">إجمالي المصاريف الإضافية وحق التعب (دج):</label>
+                        <input type="number" id="pricing-extra-cost" readonly value="0" class="w-full px-3 py-2 border border-purple-200 rounded-xl bg-purple-50 text-purple-800 font-bold focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-slate-500 font-semibold block mb-1">نسبة الربح المطلوبة (%):</label>
+                        <div class="flex flex-wrap gap-1.5 mb-2">
+                            <button type="button" onclick="setPricingProfit(20)" class="bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-100">20%</button>
+                            <button type="button" onclick="setPricingProfit(30)" class="bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-100">30%</button>
+                            <button type="button" onclick="setPricingProfit(40)" class="bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-100">40%</button>
+                            <button type="button" onclick="setPricingProfit(50)" class="bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg font-bold hover:bg-purple-100">50%</button>
+                        </div>
+                        <input type="number" id="pricing-profit-percent" min="0" step="0.01" oninput="calculatePricing()" placeholder="أو أدخلي نسبة مخصصة" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <span class="text-slate-500 block">إجمالي التكلفة</span>
+                        <strong id="pricing-total-cost" class="text-slate-800 block mt-1">0 دج</strong>
+                    </div>
+                    <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                        <span class="text-emerald-700 block">الربح الصافي</span>
+                        <strong id="pricing-net-profit" class="text-emerald-700 block mt-1">0 دج</strong>
+                    </div>
+                    <div class="bg-purple-50 p-2.5 rounded-xl border border-purple-200">
+                        <span class="text-purple-700 block">سعر البيع المقترح</span>
+                        <strong id="pricing-recommended-price" class="text-purple-700 block mt-1">0 دج</strong>
+                    </div>
+                </div>
+                <button type="button" onclick="savePricingCalculation()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl transition-all">
+                    حفظ نتيجة التسعير
+                </button>
+                <div id="pricing-history-container" class="space-y-1.5"></div>
+            </div>
+<div id="project-costs-panel" class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm space-y-3 text-xs">
+                <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b pb-2">
+                    <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i> إدارة تكاليف المشروع والأرباح الشهرية
+                </h2>
+                
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <h4 class="font-bold text-slate-700">⚙️ ضبط الشهر المالي الحالي</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] text-slate-500 block mb-1">تاريخ بداية الشهر المالي</label>
+                            <input type="date" id="cycle-start" onchange="saveCycleDates()" class="w-full px-2 py-1.5 border rounded-xl bg-white">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-500 block mb-1">تاريخ نهاية الشهر المالي</label>
+                            <input type="date" id="cycle-end" onchange="saveCycleDates()" class="w-full px-2 py-1.5 border rounded-xl bg-white">
+                        </div>
+                    </div>
+                </div>
+<form onsubmit="addExpense(event)" class="space-y-2 bg-rose-50/50 p-3 rounded-xl border border-rose-100">
+                    <h4 class="font-bold text-rose-900">➕ تسجيل تكاليف ومصاريف جديدة (أقمشة، خيوط، إكسسوارات...)</h4>
+                    <input type="text" id="exp-title" placeholder="بيان المصروف (مثال: أقمشة جديدة + لوازم)..." required class="w-full px-3 py-2 border rounded-xl bg-white">
+                    <div class="flex gap-2">
+                        <input type="number" id="exp-amount" placeholder="التكلفة (دج)..." required class="w-1/2 px-3 py-2 border rounded-xl bg-white">
+                        <button type="submit" class="w-1/2 bg-rose-500 text-white font-bold py-2 rounded-xl">إضافة للمصاريف ✓</button>
+                    </div>
+                </form>
+<div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200 space-y-2">
+                    <h4 class="font-bold text-emerald-900">📊 حسابات الشهر المالي الحالي</h4>
+                    <div class="flex justify-between text-slate-600">
+                        <span>إجمالي الطلبيات المحصلة:</span>
+                        <span id="cycle-income" class="font-bold text-emerald-700">0 دج</span>
+                    </div>
+                    <div class="flex justify-between text-slate-600">
+                        <span>إجمالي التكاليف والمصاريف:</span>
+                        <span id="cycle-expenses" class="font-bold text-rose-600">0 دج</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-emerald-200 font-black text-sm">
+                        <span>الربح الصافي الفعلي لهذا الشهر:</span>
+                        <span id="cycle-net-profit" class="text-emerald-700 text-base">0 دج</span>
+                    </div>
+                    <button onclick="archiveCurrentMonth()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl mt-2">
+                        📁 إغلاق وأرشفة هذا الشهر المالي
+                    </button>
+                </div>
+<div class="space-y-1.5 pt-2">
+                    <h4 class="font-bold text-slate-700">قائمة تكاليف ومصاريف هذا الشهر:</h4>
+                    <div id="expenses-container" class="space-y-1.5"></div>
+                </div>
+            </div>
+<div id="financial-history-panel" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                <h3 class="text-xs font-bold text-slate-700">🗄️ أرشيف الشهور والنتائج المالية السابقة</h3>
+                <div id="financial-history-container" class="space-y-2 text-xs"></div>
+            </div>
+        </section>
+<section id="sec-goals" class="space-y-4 hidden">
+            <div class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <i data-lucide="target" class="w-4 h-4 text-emerald-600"></i> الأهداف ورأس المال
+                    </h2>
+                    <button onclick="toggleAddGoalModal()" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-xl font-bold">إضافة هدف</button>
+                </div>
+            </div>
+            <div id="goals-container" class="space-y-2.5"></div>
+        </section>
+<section id="sec-settings" class="space-y-4 hidden">
+            <div class="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm space-y-3">
+                <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <i data-lucide="settings" class="w-4 h-4 text-rose-500"></i> إعدادات التطبيق
+                </h2>
+                <div class="bg-slate-900 text-white p-3 rounded-2xl space-y-2">
+                    <div class="flex items-center gap-2"><i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i><div><span class="font-bold block text-xs">النسخ الاحتياطي</span><span class="text-[10px] text-slate-300">احفظي بياناتك أو انقليها لهاتف آخر</span></div></div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="exportBackupData()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white px-2.5 py-2 rounded-xl font-bold flex items-center justify-center gap-1 text-xs"><i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> تصدير البيانات</button>
+                        <button type="button" onclick="triggerRestoreInput()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-2 rounded-xl font-bold flex items-center justify-center gap-1 text-xs"><i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> استيراد البيانات</button>
+                        <input type="file" id="restore-file-input" onchange="importBackupData(event)" accept=".json" class="hidden">
+                    </div>
+                </div>
+                <form onsubmit="saveOwnerName(event)" class="bg-rose-50/60 p-3 rounded-xl border border-rose-100 space-y-2">
+                    <label for="settings-owner-name" class="text-xs font-bold text-rose-900 block">اسم صاحبة التطبيق</label>
+                    <div class="flex gap-2"><input type="text" id="settings-owner-name" required class="flex-1 px-3 py-2 border rounded-xl bg-white text-xs" placeholder="اكتبي اسمك هنا"><button type="submit" class="bg-rose-500 text-white px-3 py-2 rounded-xl text-xs font-bold">حفظ الاسم</button></div>
+                </form>
+                <div id="google-password-panel" class="bg-blue-50 p-3 rounded-xl border border-blue-100 space-y-2 hidden">
+                    <h3 class="text-xs font-bold text-blue-900">إضافة كلمة مرور للحساب</h3>
+                    <p class="text-[10px] text-blue-700">إذا أنشأتِ الحساب عبر Google، أضيفي كلمة مرور حتى تتمكني من الدخول بنفس البريد بالطريقتين.</p>
+                    <form onsubmit="linkEmailPassword(event)" class="space-y-2">
+                        <input id="google-account-password" type="password" minlength="6" required autocomplete="new-password" placeholder="اكتبي كلمة المرور (6 أحرف على الأقل)" class="w-full px-3 py-2 border rounded-xl bg-white text-xs">
+                        <input id="google-account-password-confirm" type="password" minlength="6" required autocomplete="new-password" placeholder="أعيدي كتابة كلمة المرور" class="w-full px-3 py-2 border rounded-xl bg-white text-xs">
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">حفظ كلمة المرور</button>
+                    </form>
+                </div>
+                <div id="email-google-panel" class="bg-amber-50 p-3 rounded-xl border border-amber-100 space-y-2 hidden">
+                    <h3 class="text-xs font-bold text-amber-900">ربط حساب Google</h3>
+                    <p class="text-[10px] text-amber-700">يمكنك ربط Google بهذا الحساب حتى تستعملي تسجيل الدخول بالطريقتين.</p>
+                    <button type="button" onclick="linkGoogleProvider()" class="w-full bg-white border border-amber-200 text-slate-800 px-3 py-2 rounded-xl text-xs font-bold">ربط Google بالحساب</button>
+                </div>
+                <button type="button" onclick="logoutUser()" class="w-full bg-slate-800 hover:bg-slate-900 text-white px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"><i data-lucide="log-out" class="w-4 h-4"></i> تسجيل الخروج</button>
+                <label class="workshop-logo-control">تغيير شعار الورشة<input type="file" id="workshop-logo-input" accept="image/*" onchange="changeWorkshopLogo(event)"></label>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <h3 class="text-xs font-bold text-slate-700">Language & Currency</h3>
+                    <button type="button" onclick="requestNotificationPermission()" class="w-full bg-amber-600 text-white px-3 py-2 rounded-xl text-xs font-bold">تفعيل إشعارات الهاتف بالصوت</button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="text-[10px] text-slate-600">Language<select id="settings-language" onchange="saveAppPreferences()" class="mt-1 w-full px-2 py-2 border rounded-xl bg-white text-xs"><option value="ar">Arabic</option><option value="en">English</option><option value="fr">French</option></select></label>
+                        <label class="text-[10px] text-slate-600">Currency<select id="settings-currency" onchange="saveAppPreferences()" class="mt-1 w-full px-2 py-2 border rounded-xl bg-white text-xs"><option value="DZD">Algerian Dinar (DZD)</option><option value="USD">US Dollar (USD)</option><option value="EUR">Euro (EUR)</option><option value="GBP">British Pound (GBP)</option><option value="SAR">Saudi Riyal (SAR)</option></select></label>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <h3 class="text-xs font-bold text-slate-700">اختيار وضع التطبيق</h3>
+                    <p class="text-[10px] text-slate-500">اختاري الوضع النهاري أو الليلي، وسيبقى اختيارك محفوظًا.</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="chooseTheme('theme-day')" class="theme-choice theme-choice-day"><i data-lucide="sun" class="w-5 h-5 mx-auto mb-1"></i>الوضع النهاري</button>
+                        <button type="button" onclick="chooseTheme('theme-night')" class="theme-choice theme-choice-night"><i data-lucide="moon" class="w-5 h-5 mx-auto mb-1"></i>الوضع الليلي</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+<div id="edit-shopping-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl">
+            <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-slate-800 text-sm">تعديل تفاصيل السلعة</h3><button type="button" onclick="closeEditShoppingModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+            <form onsubmit="saveShoppingEdit(event)" class="space-y-2.5 text-xs">
+                <input type="hidden" id="edit-shopping-id">
+                <input type="text" id="edit-shopping-name" required class="w-full px-3 py-2 border rounded-xl" placeholder="اسم السلعة">
+                <input type="text" id="edit-shopping-quantity" required class="w-full px-3 py-2 border rounded-xl" placeholder="الكمية: 5 قطع أو مترين">
+                <label class="inventory-file-label"><span>تغيير صورة السلعة</span><input type="file" id="edit-shopping-image" accept="image/*"><img id="edit-shopping-image-preview" class="hidden" alt="صورة السلعة"></label>
+                <button type="submit" class="w-full bg-sky-600 text-white font-bold py-2.5 rounded-xl">حفظ كل التعديلات</button>
+            </form>
+        </div>
+    </div>
+<div id="edit-inventory-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-slate-800 text-sm">تعديل تفاصيل منتج الجرد</h3><button type="button" onclick="closeEditInventoryModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+            <form onsubmit="saveInventoryEdit(event)" class="space-y-2.5 text-xs">
+                <input type="hidden" id="edit-inventory-id">
+                <input type="text" id="edit-inventory-name" required class="w-full px-3 py-2 border rounded-xl" placeholder="اسم المنتج">
+                <div class="grid grid-cols-2 gap-2"><input type="text" id="edit-inventory-type" class="w-full px-3 py-2 border rounded-xl" placeholder="نوع المنتج"><input type="text" inputmode="text" id="edit-inventory-quantity" required class="w-full px-3 py-2 border rounded-xl" placeholder="الكمية"></div>
+                <input type="number" id="edit-inventory-price" min="0" step="0.01" class="w-full px-3 py-2 border rounded-xl" placeholder="السعر (دج)">
+                <div class="grid grid-cols-2 gap-2"><label class="inventory-file-label"><span>تغيير الصورة 1</span><input type="file" id="edit-inventory-image" accept="image/*"><img id="edit-inventory-image-preview" class="hidden" alt="صورة المنتج"></label><label class="inventory-file-label"><span>تغيير الصورة 2</span><input type="file" id="edit-inventory-image-2" accept="image/*"><img id="edit-inventory-image-2-preview" class="hidden" alt="صورة المنتج"></label></div>
+                <textarea id="edit-inventory-notes" rows="4" class="w-full px-3 py-2 border rounded-xl resize-y" placeholder="ملاحظات حول المنتج"></textarea>
+                <button type="submit" class="w-full bg-sky-600 text-white font-bold py-2.5 rounded-xl">حفظ كل التعديلات</button>
+            </form>
+        </div>
+    </div>
+<div id="edit-order-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">تعديل تفاصيل الطلبية والقياسات</h3>
+                <button type="button" onclick="closeEditOrderModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveOrderEdit(event)" class="space-y-2.5 text-xs">
+                <input type="hidden" id="edit-order-id">
+                <input type="text" id="edit-order-client" required class="w-full px-3 py-2 border rounded-xl" placeholder="اسم الزبونة">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="tel" id="edit-order-phone" class="w-full px-3 py-2 border rounded-xl" placeholder="الهاتف">
+                    <input type="text" id="edit-order-state" class="w-full px-3 py-2 border rounded-xl" placeholder="الولاية">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="edit-order-item" required class="w-full px-3 py-2 border rounded-xl" placeholder="نوع المنتج">
+                    <input type="number" id="edit-order-price" required class="w-full px-2 py-2 border rounded-xl" placeholder="السعر">
+                </div>
+                <textarea id="edit-order-size" class="w-full px-3 py-2 border rounded-xl h-16 resize-y" placeholder="تفاصيل أو ملاحظات أخرى"></textarea>
+<div class="bg-rose-50/60 p-3 rounded-xl border border-rose-200 space-y-2">
+                    <span class="font-bold text-rose-900 text-xs block">📏 قياسات مجال الألبسة والتفصيل (للتعديل):</span>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">الطول الكلي</label><input type="text" id="edit-m-len" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول الرقبة</label><input type="text" id="edit-m-neck" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">عرض الكتفين</label><input type="text" id="edit-m-shoulders" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول بين النهدين</label><input type="text" id="edit-m-btwn-bust" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الصدر</label><input type="text" id="edit-m-chest" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط تحت الصدر</label><input type="text" id="edit-m-under-chest" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الخصر</label><input type="text" id="edit-m-waist" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول قصة الصدر</label><input type="text" id="edit-m-chest-cut" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الورك</label><input type="text" id="edit-m-hips" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">ارتفاع الورك</label><input type="text" id="edit-m-hip-height" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول الذراع</label><input type="text" id="edit-m-arm-len" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">عرض الزندة</label><input type="text" id="edit-m-bicep" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div class="col-span-2"><label class="text-[10px] text-slate-600 block mb-0.5">دوران المعصم</label><input type="text" id="edit-m-wrist" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                    </div>
+                    <div class="pt-1">
+                        <label class="text-[10px] text-rose-800 font-semibold block mb-0.5">قياس إضافي آخر:</label>
+                        <input type="text" id="edit-m-extra" class="w-full px-2.5 py-1.5 text-xs border border-rose-200 rounded-lg bg-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="edit-order-deposit" class="w-full px-2 py-2 border rounded-xl" placeholder="العربون">
+                    <input type="date" id="edit-order-date" class="w-full px-2 py-2 border rounded-xl">
+                </div>
+                <textarea id="edit-order-notes" class="w-full px-3 py-2 border rounded-xl h-16 resize-y" placeholder="ملاحظات إضافية"></textarea>
+                <button type="submit" class="w-full bg-rose-500 text-white font-bold py-2.5 rounded-xl">حفظ التغييرات</button>
+            </form>
+        </div>
+    </div>
+<div id="archive-details-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                    <i data-lucide="folder-open" class="w-4 h-4 text-rose-500"></i> تفاصيل الشهر المؤرشف
+                </h3>
+                <button type="button" onclick="closeArchiveDetailsModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="archive-modal-content" class="space-y-3 text-xs"></div>
+            <button onclick="closeArchiveDetailsModal()" class="w-full bg-slate-800 text-white font-bold py-2 rounded-xl text-xs">إغلاق</button>
+        </div>
+    </div>
+<div id="edit-client-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">تعديل ملف الزبونة وقياساتها</h3>
+                <button type="button" onclick="closeEditClientModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveClientEdit(event)" class="space-y-2.5 text-xs">
+                <input type="hidden" id="edit-client-id">
+                <input type="text" id="edit-client-name" required class="w-full px-3 py-2 border rounded-xl" placeholder="اسم الزبونة">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="tel" id="edit-client-phone" class="w-full px-3 py-2 border rounded-xl" placeholder="الهاتف">
+                    <input type="text" id="edit-client-state" class="w-full px-3 py-2 border rounded-xl" placeholder="الولاية">
+                </div>
+                <textarea id="edit-client-notes" class="w-full px-3 py-2 border rounded-xl h-16 resize-none" placeholder="ملاحظات وتفضيلات الزبونة"></textarea>
+<div class="bg-purple-50/60 p-3 rounded-xl border border-purple-200 space-y-2">
+                    <span class="font-bold text-purple-900 text-xs block">📏 قياسات جسم الزبونة (الألبسة والتفصيل):</span>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">الطول الكلي</label><input type="text" id="client-m-len" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول الرقبة</label><input type="text" id="client-m-neck" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">عرض الكتفين</label><input type="text" id="client-m-shoulders" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول بين النهدين</label><input type="text" id="client-m-btwn-bust" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الصدر</label><input type="text" id="client-m-chest" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط تحت الصدر</label><input type="text" id="client-m-under-chest" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الخصر</label><input type="text" id="client-m-waist" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول قصة الصدر</label><input type="text" id="client-m-chest-cut" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">محيط الورك</label><input type="text" id="client-m-hips" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">ارتفاع الورك</label><input type="text" id="client-m-hip-height" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">طول الذراع</label><input type="text" id="client-m-arm-len" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div><label class="text-[10px] text-slate-600 block mb-0.5">عرض الزندة</label><input type="text" id="client-m-bicep" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                        <div class="col-span-2"><label class="text-[10px] text-slate-600 block mb-0.5">دوران المعصم</label><input type="text" id="client-m-wrist" class="w-full px-2.5 py-1.5 border rounded-lg bg-white"></div>
+                    </div>
+                    <div class="pt-1">
+                        <label class="text-[10px] text-purple-800 font-semibold block mb-0.5">قياس إضافي آخر:</label>
+                        <input type="text" id="client-m-extra" class="w-full px-2.5 py-1.5 text-xs border border-purple-200 rounded-lg bg-white">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-purple-600 text-white font-bold py-2.5 rounded-xl">تحديث المعلومات والقياسات</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-goal-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">تعديل الهدف</h3>
+                <button type="button" onclick="closeEditGoalModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveGoalEdit(event)" class="space-y-2.5 text-xs">
+                <input type="hidden" id="edit-goal-id">
+                <input type="text" id="edit-goal-title" required class="w-full px-3 py-2 border rounded-xl" placeholder="اسم الهدف">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="edit-goal-target" required class="w-full px-3 py-2 border rounded-xl" placeholder="المطلوب">
+                    <input type="number" id="edit-goal-current" required class="w-full px-3 py-2 border rounded-xl" placeholder="الموفر">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl">حفظ التعديلات</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="supply-catalog-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">قائمة السلع والمشتريات</h3>
+                <button type="button" onclick="toggleSupplyCatalogModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <p class="text-[10px] text-slate-500">اختاري «إضافة للمخزون» لإضافة 5 قطع، أو احذفي السلعة من القائمة نهائيًا.</p>
+            <div id="supply-catalog-container" class="space-y-1.5"></div>
+            <form onsubmit="addCatalogItem(event)" class="border-t pt-3 space-y-2">
+                <label for="catalog-item-name" class="text-xs font-bold text-slate-700">إضافة سلعة جديدة للقائمة</label>
+                <div class="flex gap-2"><input type="text" id="catalog-item-name" required placeholder="مثال: سحاب أسود" class="flex-1 px-3 py-2 border rounded-xl text-xs"><button type="submit" class="bg-rose-500 text-white px-3 py-2 rounded-xl text-xs font-bold">إضافة</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="add-supply-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">إضافة قماش للمخزون</h3>
+                <button type="button" onclick="toggleAddSupplyModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="addCustomSupply(event)" class="space-y-2.5 text-xs">
+                <input type="text" id="modal-sup-name" placeholder="اسم القماش..." required class="w-full px-3 py-2 border rounded-xl">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="modal-sup-qty" placeholder="الكمية..." required class="w-full px-3 py-2 border rounded-xl">
+                    <select id="modal-sup-unit" class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        <option value="متر">متر</option>
+                        <option value="بكرة">بكرة</option>
+                        <option value="قطعة">قطعة</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-rose-500 text-white font-bold py-2 rounded-xl">إضافة للمخزون</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="google-password-modal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-3 shadow-xl" dir="rtl">
+            <h3 class="font-bold text-slate-800">أضيفي كلمة مرور للحساب</h3>
+            <p class="text-xs text-slate-600">تم إنشاء حسابك عبر Google. أضيفي كلمة مرور الآن حتى تتمكني من الدخول لاحقًا بنفس البريد الإلكتروني بالطريقتين.</p>
+            <form onsubmit="linkEmailPassword(event)" class="space-y-2.5">
+                <input id="google-account-password-modal" type="password" minlength="6" required autocomplete="new-password" placeholder="اكتبي كلمة المرور (6 أحرف على الأقل)" class="w-full px-3 py-2.5 border rounded-xl text-xs">
+                <input id="google-account-password-confirm-modal" type="password" minlength="6" required autocomplete="new-password" placeholder="أعيدي كتابة كلمة المرور" class="w-full px-3 py-2.5 border rounded-xl text-xs">
+                <button type="submit" class="w-full bg-rose-500 hover:bg-rose-600 text-white py-2.5 rounded-xl text-xs font-bold">حفظ والمتابعة</button>
+            </form>
+            <button type="button" onclick="document.getElementById('google-password-modal')?.classList.add('hidden')" class="w-full text-slate-500 text-xs">لاحقًا من الإعدادات</button>
+        </div>
+    </div>
+    <div id="add-goal-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl p-4 space-y-3 shadow-xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">إضافة هدف أو آلة جديدة</h3>
+                <button type="button" onclick="toggleAddGoalModal()" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="addNewGoal(event)" class="space-y-2.5 text-xs">
+                <input type="text" id="goal-title" placeholder="اسم الهدف..." required class="w-full px-3 py-2 border rounded-xl">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="goal-target" placeholder="المبلغ المطلوب..." required class="w-full px-3 py-2 border rounded-xl">
+                    <input type="number" id="goal-current" placeholder="المبلغ المتوفر حالياً..." class="w-full px-3 py-2 border rounded-xl">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl">حفظ الهدف</button>
+            </form>
+        </div>
+    </div>
+
+    </div>
+    <div class="legal-links" style="text-align:center;padding:12px 8px;color:#64748b;font-size:11px;">
+        <a href="./privacy.html" target="_blank" rel="noopener" style="margin:0 6px;">سياسة الخصوصية</a>
+        <a href="./terms.html" target="_blank" rel="noopener" style="margin:0 6px;">شروط الاستخدام</a>
+    </div>
+<script type="module" src="./firebase.js"></script>
+    <script src="./script.js"></script>
+</body>
+</html>

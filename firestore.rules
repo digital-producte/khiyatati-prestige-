@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUserDocument(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validAppData(data, uid) {
+      return data.ownerUid == uid
+        && data.schemaVersion == 1
+        && data.userName is string
+        && data.userName.size() <= 200
+        && data.orders is list
+        && data.orders.size() <= 5000
+        && data.clients is list
+        && data.clients.size() <= 5000
+        && data.supplies is list
+        && data.supplies.size() <= 5000
+        && data.inventoryProducts is list
+        && data.inventoryProducts.size() <= 5000
+        && data.shoppingItems is list
+        && data.shoppingItems.size() <= 5000
+        && data.workshopLogo is string
+        && data.workshopLogo.size() <= 700000
+        && data.appLanguage is string
+        && data.appLanguage.size() <= 5
+        && data.appCurrency is string
+        && data.appCurrency.size() <= 5
+        && data.goals is list
+        && data.goals.size() <= 1000
+        && data.expenses is list
+        && data.expenses.size() <= 5000
+        && data.financialArchives is list
+        && data.financialArchives.size() <= 1000
+        && data.cycle is map
+        && data.cycle.keys().hasOnly(['start', 'end'])
+        && data.cycle.start is string
+        && data.cycle.end is string
+        && data.pricingCalculations is list
+        && data.pricingCalculations.size() <= 5000
+        && data.supplyCatalog is list
+        && data.supplyCatalog.size() <= 5000
+        && data.purchasedCatalogItems is map
+        && data.purchasedCatalogItems.size() <= 2000
+        && data.selectedTheme is string
+        && data.selectedTheme.size() <= 50
+        && (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp)
+        && data.keys().hasOnly([
+          'ownerUid',
+          'schemaVersion',
+          'userName',
+          'orders',
+          'clients',
+          'supplies',
+          'inventoryProducts',
+          'shoppingItems',
+          'workshopLogo',
+          'appLanguage',
+          'appCurrency',
+          'goals',
+          'expenses',
+          'financialArchives',
+          'cycle',
+          'pricingCalculations',
+          'supplyCatalog',
+          'purchasedCatalogItems',
+          'selectedTheme',
+          'updatedAt'
+        ]);
+    }
+
+    match /users/{uid}/appData/main {
+      allow read: if ownsUserDocument(uid);
+      allow create: if ownsUserDocument(uid)
+                    && validAppData(request.resource.data, uid);
+      allow update: if ownsUserDocument(uid)
+                    && resource.data.ownerUid == uid
+                    && request.resource.data.ownerUid == uid
+                    && validAppData(request.resource.data, uid);
+      allow delete: if ownsUserDocument(uid);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
