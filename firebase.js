@@ -21,6 +21,9 @@ const googleProvider = new GoogleAuthProvider();
 let currentUser = null;
 let authMode = 'login';
 let firstAuthLoad = true;
+// Serialize full-document writes so an older snapshot can never finish after
+// and overwrite a newer snapshot from the same signed-in session.
+let firebaseSyncQueue = Promise.resolve();
 
 const authError = (message) => {
   const el = document.getElementById('auth-error');
@@ -78,22 +81,34 @@ async function ensureUserDocument(user) {
   }
 }
 
-window.firebaseSyncAppData = async (data) => {
-  if (!currentUser || !navigator.onLine) return;
-  try {
-    await setDoc(doc(db, 'users', currentUser.uid, 'appData', 'main'), {
-      ...data,
-      ownerUid: currentUser.uid,
-      schemaVersion: 1,
-      updatedAt: serverTimestamp()
-    }, { merge: false });
-    window.clearLocalSyncPending?.(currentUser.uid);
-    await window.clearIndexedDbBackup?.(currentUser.uid);
-    window.firebaseCloudStatus?.('تمت المزامنة السحابية');
-  } catch (error) {
-    console.error('Firestore sync error:', error);
-    window.firebaseCloudStatus?.('حُفظت محليًا — ستتم المزامنة لاحقًا');
-  }
+window.firebaseSyncAppData = (data) => {
+  if (!currentUser || !navigator.onLine) return Promise.resolve(false);
+  const uid = currentUser.uid;
+  // Capture an immutable snapshot at the moment this save was requested.
+  const snapshot = JSON.parse(JSON.stringify(data || {}));
+  const write = firebaseSyncQueue.catch(() => {}).then(async () => {
+    // Do not let a queued write from a previous account reach this account.
+    if (!currentUser || currentUser.uid !== uid || !navigator.onLine) return false;
+    try {
+      await setDoc(doc(db, 'users', uid, 'appData', 'main'), {
+        ...snapshot,
+        ownerUid: uid,
+        schemaVersion: 1,
+        updatedAt: serverTimestamp()
+      }, { merge: false });
+      window.clearLocalSyncPending?.(uid);
+      // Keep the latest IndexedDB snapshot as an independent recovery copy.
+      // It is refreshed on every save and is not deleted by a cloud write.
+      window.firebaseCloudStatus?.('تمت المزامنة السحابية');
+      return true;
+    } catch (error) {
+      console.error('Firestore sync error:', error);
+      window.firebaseCloudStatus?.('حُفظت محليًا — ستتم المزامنة لاحقًا');
+      return false;
+    }
+  });
+  firebaseSyncQueue = write;
+  return write;
 };
 
 window.submitAuthForm = async (event) => {

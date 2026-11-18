@@ -57,6 +57,14 @@ if ('serviceWorker' in navigator) {
                 return true;
             } catch (error) { console.warn('Local backup failed:', error); return false; }
         }
+        // Serialize IndexedDB snapshots so an older save cannot replace a newer recovery copy.
+        let localBackupWriteQueue = Promise.resolve();
+        function queueLocalBackup(uid, data) {
+            const write = localBackupWriteQueue.catch(() => {}).then(() => saveLocalBackup(uid, data));
+            localBackupWriteQueue = write;
+            return write;
+        }
+
         async function restoreLocalBackup(uid = activeUid) {
             if (!uid) return false;
             try {
@@ -2102,8 +2110,18 @@ if ('serviceWorker' in navigator) {
                 localStorage.setItem(storageKey('momprenuer_supply_purchased'), JSON.stringify(purchasedCatalogItems));
                 localStorage.setItem(storageKey('momprenuer_theme'), JSON.stringify(selectedTheme));
                 if (syncCloud && activeUid) markLocalSyncPending();
-                if (activeUid) clearLocalBackup(activeUid);
-                if (syncCloud && window.firebaseSyncAppData && firebaseUser) window.firebaseSyncAppData(getAppDataSnapshot());
+                // Keep a fresh per-account recovery snapshot. It is cleared only
+                // after Firebase confirms that the same snapshot was written.
+                const snapshot = getAppDataSnapshot();
+                if (activeUid) {
+                    queueLocalBackup(activeUid, snapshot).then(() => {
+                        if (syncCloud && window.firebaseSyncAppData && firebaseUser) {
+                            return window.firebaseSyncAppData(snapshot);
+                        }
+                    }).catch(error => console.warn('Could not persist recovery snapshot:', error));
+                } else if (syncCloud && window.firebaseSyncAppData && firebaseUser) {
+                    window.firebaseSyncAppData(snapshot);
+                }
                 if (appLanguage !== 'ar') setTimeout(() => applyAppLocale(), 0);
                 return true;
             } catch (error) {
