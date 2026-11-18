@@ -18,9 +18,17 @@ if ('serviceWorker' in navigator) {
         function readStoredJson(key, fallback) {
             try {
                 const storedValue = localStorage.getItem(key);
-                return storedValue ? JSON.parse(storedValue) : fallback;
+                if (!storedValue) return fallback;
+                try {
+                    return JSON.parse(storedValue);
+                } catch (parseError) {
+                    // توافق مع النسخ القديمة التي خزنت اسم المستخدم كنص عادي.
+                    if (key.includes('momprenuer_user_name')) return storedValue;
+                    console.warn(`تعذر تحليل البيانات المحفوظة (${key})، سيتم استخدام البيانات الافتراضية.`, parseError);
+                    return fallback;
+                }
             } catch (error) {
-                showAlert(`❌ تعذر قراءة البيانات المحفوظة (${key}). سيتم استخدام البيانات الافتراضية.`);
+                console.warn(`تعذر قراءة البيانات المحفوظة (${key}).`, error);
                 return fallback;
             }
         }
@@ -506,7 +514,7 @@ if ('serviceWorker' in navigator) {
             if (newName && newName.trim() !== '') {
                 userName = newName.trim();
                 try {
-                    localStorage.setItem(storageKey('momprenuer_user_name'), userName);
+                    localStorage.setItem(storageKey('momprenuer_user_name'), JSON.stringify(userName));
                     updateUserGreeting();
                     saveData();
                 } catch (error) {
@@ -521,7 +529,7 @@ if ('serviceWorker' in navigator) {
             if (!name) return showValidationError('يرجى إدخال اسم صاحبة التطبيق.');
             userName = name;
             try {
-                localStorage.setItem(storageKey('momprenuer_user_name'), userName);
+                localStorage.setItem(storageKey('momprenuer_user_name'), JSON.stringify(userName));
                 updateUserGreeting();
                 saveData();
                 showAlert('✅ تم حفظ الاسم بنجاح!');
@@ -1190,6 +1198,46 @@ if ('serviceWorker' in navigator) {
             }
         }
 
+        let editOrderImageDraft = { fabric: [], model: [] };
+
+        function renderEditOrderImageDraft(type) {
+            const preview = document.getElementById(`edit-order-${type}-preview`);
+            if (!preview) return;
+            const images = editOrderImageDraft[type] || [];
+            preview.replaceChildren();
+            images.forEach((src, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative overflow-hidden rounded-lg border border-slate-200 bg-white';
+                const image = document.createElement('img');
+                image.src = src;
+                image.alt = type === 'fabric' ? `صورة القماش ${index + 1}` : `صورة المودال ${index + 1}`;
+                image.className = 'h-16 w-full object-cover';
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white/95 text-rose-600 border border-rose-100 text-xs leading-none font-bold';
+                remove.textContent = '×';
+                remove.setAttribute('aria-label', 'حذف الصورة');
+                remove.onclick = () => { editOrderImageDraft[type].splice(index, 1); renderEditOrderImageDraft(type); };
+                wrapper.append(image, remove);
+                preview.appendChild(wrapper);
+            });
+        }
+
+        async function handleEditOrderImages(input, type) {
+            const files = Array.from(input.files || []);
+            if (!files.length) return;
+            const invalid = files.find(file => !file.type || !file.type.startsWith('image/'));
+            if (invalid) { input.value = ''; return showValidationError('يرجى اختيار ملفات صور فقط.'); }
+            try {
+                const remaining = Math.max(0, MAX_ORDER_IMAGES_PER_TYPE - editOrderImageDraft[type].length);
+                const compressed = await Promise.all(files.slice(0, remaining).map(file => compressOrderImage(file, type === 'fabric' ? 'القماش' : 'المودال')));
+                editOrderImageDraft[type].push(...compressed);
+                if (files.length > remaining) showAlert(`يمكن إضافة ${MAX_ORDER_IMAGES_PER_TYPE} صور كحد أقصى لكل قسم.`);
+                renderEditOrderImageDraft(type);
+            } catch (error) { showValidationError(error.message || 'تعذر قراءة الصور المختارة.'); }
+            input.value = '';
+        }
+
         function openEditOrderModal(id) {
             const o = orders.find(x => x.id === id);
             if (!o) return;
@@ -1220,6 +1268,12 @@ if ('serviceWorker' in navigator) {
             document.getElementById('edit-order-deposit').value = o.deposit || 0;
             document.getElementById('edit-order-date').value = o.date || '';
             document.getElementById('edit-order-notes').value = o.notes || '';
+            editOrderImageDraft = {
+                fabric: [...getOrderImages(o, 'fabric')],
+                model: [...getOrderImages(o, 'model')]
+            };
+            renderEditOrderImageDraft('fabric');
+            renderEditOrderImageDraft('model');
             document.getElementById('edit-order-modal').classList.remove('hidden');
         }
 
@@ -1265,6 +1319,11 @@ if ('serviceWorker' in navigator) {
                 o.deposit = parseFloat(document.getElementById('edit-order-deposit').value) || 0;
                 o.date = document.getElementById('edit-order-date').value;
                 o.notes = document.getElementById('edit-order-notes').value;
+                o.fabricImages = [...editOrderImageDraft.fabric];
+                o.modelImages = [...editOrderImageDraft.model];
+                o.fabricImage = o.fabricImages[0] || '';
+                o.modelImage = o.modelImages[0] || '';
+                if (o.fabricImages.length || o.modelImages.length) delete o.imagesDeletedAt;
                 saveData();
                 renderOrders();
                 renderArchive();

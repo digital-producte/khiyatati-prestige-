@@ -1,4 +1,4 @@
-const CACHE_NAME = 'momprenuer-v62';
+const CACHE_NAME = 'momprenuer-v64';
 const ASSETS = [
     './', './index.html', './manifest.json', './style.css', './script.js', './firebase.js',
     './privacy.html', './terms.html', './icon.png', './prestige-digital.jpg', './sw.js',
