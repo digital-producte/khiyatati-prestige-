@@ -188,42 +188,76 @@ if ('serviceWorker' in navigator) {
 
         function triggerRestoreInput() { document.getElementById('restore-file-input').click(); }
 
-        function importBackupData(e) {
+        function mergeImportedArray(current, incoming) {
+            const existing = Array.isArray(current) ? current : [];
+            const additions = Array.isArray(incoming) ? incoming : [];
+            const result = existing.slice();
+            const seen = new Set();
+            const stableKey = item => {
+                if (!item || typeof item !== 'object') return `value:${String(item)}`;
+                const id = item.id ?? item.uid ?? item.key ?? item.orderId ?? item.clientId;
+                if (id !== undefined && id !== null && String(id).trim() !== '') return `id:${String(id)}`;
+                const sortObject = value => Array.isArray(value) ? value.map(sortObject) :
+                    value && typeof value === 'object' ? Object.keys(value).sort().reduce((out, key) => {
+                        out[key] = sortObject(value[key]); return out;
+                    }, {}) : value;
+                return `data:${JSON.stringify(sortObject(item))}`;
+            };
+            existing.forEach(item => seen.add(stableKey(item)));
+            additions.forEach(item => {
+                const key = stableKey(item);
+                if (!seen.has(key)) { result.push(item); seen.add(key); }
+            });
+            return result;
+        }
+
+        async function importBackupData(e) {
             try {
-                const file = e.target.files[0];
+                const file = e.target.files?.[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = function(event) {
+                reader.onload = async function(event) {
                     try {
                         const importedData = JSON.parse(event.target.result);
-                        if (showConfirm('هل أنتِ متأكدة من استرجاع البيانات؟')) {
-                            userName = importedData.userName || userName;
-                            orders = importedData.orders || [];
-                            clients = importedData.clients || [];
-                            supplies = importedData.supplies || [];
-                            inventoryProducts = Array.isArray(importedData.inventoryProducts) ? importedData.inventoryProducts : inventoryProducts;
-                            shoppingItems = Array.isArray(importedData.shoppingItems) ? importedData.shoppingItems : shoppingItems;
-                            workshopLogo = importedData.workshopLogo || workshopLogo;
-                            appLanguage = importedData.appLanguage || appLanguage;
-                            appCurrency = importedData.appCurrency || appCurrency;
-                            goals = importedData.goals || [];
-                            expenses = importedData.expenses || [];
-                            financialArchives = importedData.financialArchives || [];
-                            cycle = importedData.cycle || cycle;
-                            pricingCalculations = importedData.pricingCalculations || pricingCalculations;
-                            supplyCatalog = importedData.supplyCatalog || supplyCatalog;
-                            purchasedCatalogItems = importedData.purchasedCatalogItems || purchasedCatalogItems;
-                            selectedTheme = importedData.selectedTheme || selectedTheme;
-                            saveData();
+                        if (!importedData || typeof importedData !== 'object' || Array.isArray(importedData)) throw new Error('Invalid backup structure');
+                        const hasRecognizedData = ['orders','clients','supplies','inventoryProducts','shoppingItems','goals','expenses','financialArchives','pricingCalculations','supplyCatalog'].some(key => Array.isArray(importedData[key]));
+                        if (!hasRecognizedData) throw new Error('No recognized data');
+                        if (showConfirm('سيتم دمج بيانات الملف مع البيانات الموجودة حاليًا. البيانات الحالية تبقى محفوظة، وتُضاف السجلات الجديدة فقط دون تكرار. هل تريدين المتابعة؟')) {
+                            // Keep active account data first; append only records not already present.
+                            orders = mergeImportedArray(orders, importedData.orders);
+                            clients = mergeImportedArray(clients, importedData.clients);
+                            supplies = mergeImportedArray(supplies, importedData.supplies);
+                            inventoryProducts = mergeImportedArray(inventoryProducts, importedData.inventoryProducts);
+                            shoppingItems = mergeImportedArray(shoppingItems, importedData.shoppingItems);
+                            goals = mergeImportedArray(goals, importedData.goals);
+                            expenses = mergeImportedArray(expenses, importedData.expenses);
+                            financialArchives = mergeImportedArray(financialArchives, importedData.financialArchives);
+                            pricingCalculations = mergeImportedArray(pricingCalculations, importedData.pricingCalculations);
+                            supplyCatalog = mergeImportedArray(supplyCatalog, importedData.supplyCatalog);
+                            purchasedCatalogItems = { ...(importedData.purchasedCatalogItems || {}), ...(purchasedCatalogItems || {}) };
+                            if (!userName && importedData.userName) userName = importedData.userName;
+                            if (!workshopLogo && importedData.workshopLogo) workshopLogo = importedData.workshopLogo;
+                            if (!appLanguage && importedData.appLanguage) appLanguage = importedData.appLanguage;
+                            if (!appCurrency && importedData.appCurrency) appCurrency = importedData.appCurrency;
+                            if ((!cycle || !Object.keys(cycle).length) && importedData.cycle) cycle = importedData.cycle;
+                            if (!selectedTheme && importedData.selectedTheme) selectedTheme = importedData.selectedTheme;
+
+                            const saved = saveData(false);
+                            if (saved && activeUid && window.firebaseSyncAppData && firebaseUser) await window.firebaseSyncAppData(getAppDataSnapshot());
                             initApp();
-                            showAlert('🎉 تم الاسترجاع بنجاح!');
+                            showAlert(saved ? '🎉 تم دمج البيانات بنجاح دون حذف البيانات الموجودة!' : '⚠️ تم الدمج لكن تعذر حفظ كل البيانات محليًا. صدّري نسخة احتياطية قبل إغلاق التطبيق.');
                         }
-                    } catch (error) { showAlert('❌ الملف تالف أو غير صالح، تعذر استيراد البيانات.'); }
+                    } catch (error) {
+                        console.error('Backup import failed:', error);
+                        showAlert('❌ الملف تالف أو لا يحتوي على بيانات تطبيق خياطتي المعروفة.');
+                    } finally { e.target.value = ''; }
                 };
-                reader.onerror = () => showAlert('❌ تعذر قراءة ملف النسخة الاحتياطية.');
+                reader.onerror = () => { showAlert('❌ تعذر قراءة ملف النسخة الاحتياطية.'); e.target.value = ''; };
                 reader.readAsText(file);
             } catch (error) {
+                console.error('Could not start backup import:', error);
                 showAlert('❌ تعذر بدء استيراد النسخة الاحتياطية.');
+                if (e?.target) e.target.value = '';
             }
         }
 
